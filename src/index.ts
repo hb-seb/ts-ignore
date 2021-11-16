@@ -31,18 +31,23 @@ export default class TSIgnore extends Command {
     const spinner = ora();
     spinner.start('finding errors');
     const files: Files = {};
-    const lines = (await execa('tsc', ['--noEmit'], { cwd: rootPath }).catch(
-      err => {
+    const lines = (
+      await execa('tsc', ['--noEmit'], { cwd: rootPath }).catch(err => {
         if (err.stdout) return err;
         throw err;
-      }
-    )).stdout.split('\n');
+      })
+    ).stdout.split('\n');
     spinner.start('fixing errors');
     let count = 0;
     await mapSeries(lines, async (line: string) => {
       const [, filePath, lineNumber] = line.match(
         /(.+\.tsx?)\((\d+),\d+\): error TS\d{4}: /
       ) || [null, null, null];
+
+      const [, , , displayError] = line.match(
+        /(.+\.tsx?)\((\d+),\d+\): error (.*)/
+      ) || [null, null, null];
+
       if (!filePath) return;
       if (!(filePath in files)) {
         files[filePath] = {
@@ -61,7 +66,9 @@ export default class TSIgnore extends Command {
         0,
         `${Array(padding)
           .fill(' ')
-          .join('')}// @ts-ignore`
+          .join(
+            ''
+          )}// @ts-ignore - automatically added due to error ${displayError}`
       );
       ++file.count;
     });
